@@ -134,11 +134,16 @@ namespace cq
             var row = new List<string>();
             var cell = string.Empty;
             var currentState = State.NewRecord;
-
+            var rowCount = 1;
+            var columnCount = 1;
+            
             do
             {
                 var c = supplier();
                 var behaviour = Automaton[currentState][c];
+
+                if (behaviour.NextState == State.FormatError)
+                    throw new CsvFormatException(rowCount, columnCount, cell);
 
                 if (behaviour.Record)
                     cell += (char) c;
@@ -146,16 +151,16 @@ namespace cq
                 {
                     row.Add(cell);
                     cell = string.Empty;
+                    columnCount++;
                 }
 
                 if (behaviour.PublishRow)
                 {
                     yield return row.ToArray();
                     row.Clear();
+                    rowCount++;
+                    columnCount = 1;
                 }
-
-                if (behaviour.NextState == State.FormatError)
-                    throw new FormatException();
 
                 currentState = behaviour.NextState;
             } while (currentState != State.Eof);

@@ -190,7 +190,7 @@ namespace cq.Tests
         }
 
         [Test]
-        public void ThrowsFormatExceptionIfEofFoundWhileQuoted()
+        public void ThrowsCsvFormatExceptionIfEofFoundWhileQuoted()
         {
             Assert.That(() =>
                 {
@@ -198,7 +198,10 @@ namespace cq.Tests
                     var readAllLines = new CsvReader(new StringReader(testData)).ReadAllLines();
                     throw new AssertionException(readAllLines.Last().Last());
                 },
-                Throws.TypeOf<FormatException>()
+                Throws.TypeOf<CsvFormatException>()
+                .With.Property("Row").EqualTo(1)
+                .With.Property("Column").EqualTo(3)
+                .With.Property("Near").EqualTo("a,w,3\n")
             );
         }
 
@@ -211,7 +214,7 @@ namespace cq.Tests
                     var readAllLines = new CsvReader(new StringReader(testData)).ReadAllLines();
                     throw new AssertionException(readAllLines.Last().Last());
                 },
-                Throws.TypeOf<FormatException>()
+                Throws.TypeOf<CsvFormatException>()
             );
         }
 
@@ -220,11 +223,14 @@ namespace cq.Tests
         {
             Assert.That(() =>
                 {
-                    const string testData = "1,abc,\"a,w,3\" \r\n";
+                    const string testData = "1,2,3,4,5\r\n" + "1,abc,\"a,w,3\" \r\n";
                     var readAllLines = new CsvReader(new StringReader(testData)).ReadAllLines();
                     throw new AssertionException(readAllLines.Last().Last());
                 },
-                Throws.TypeOf<FormatException>()
+                Throws.TypeOf<CsvFormatException>()
+                    .With.Property("Row").EqualTo(2)
+                    .With.Property("Column").EqualTo(3)
+                    .With.Property("Near").EqualTo("a,w,3")
             );
         }
     }
