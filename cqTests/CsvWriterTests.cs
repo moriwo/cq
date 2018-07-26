@@ -29,7 +29,7 @@ namespace cqTests
             {
                 new [] {"1", "abc", "1,2,3", "1\n\"a\" "},
                 new [] {"@:;[.", ",,,,,,", "a\na\n\n\n\n", "\"\"\"","","","",",","EOL"},
-                new string[] {},
+                new [] {""},
                 new [] {"this", "is", "a", "csv", "file"}
             };
 
@@ -43,7 +43,7 @@ namespace cqTests
                 }
             }
             
-            throw new Exception(temporaryFilePath);
+            // throw new Exception(temporaryFilePath);
 
             var result = new CsvReader(new StreamReader(temporaryFilePath)).ReadAllLines().ToArray();
             result.IsNotNull();

@@ -3,31 +3,32 @@ using System.IO;
 using System.Text;
 using Microsoft.VisualBasic.FileIO;
 using System.Collections.Generic;
+using System.Linq;
+using System.Resources;
+using CommandLine;
+using Jint.Parser.Ast;
 
 namespace cq
 {
     public class CsvReader : IDisposable
     {
-        private readonly TextFieldParser _parser;
-
+        private readonly TextReader _reader;
+        private readonly IEnumerator<string[]> _enumerator;
+        
         public CsvReader(TextReader reader, Action<string[]> headerHandler = null)
         {
-            _parser = new TextFieldParser(reader);
-
-            _parser.SetDelimiters(",");
-            _parser.TrimWhiteSpace = false;
-
-            // read and handle header if headerHandler exists.
+            _reader = reader;
+            _enumerator = CsvParser.Parse(_reader.Read).GetEnumerator();
             headerHandler?.Invoke(ReadLine());
         }
 
         /// <summary>
         /// read a line as string[]
         /// </summary>
-        /// <returns>a row in csv file</returns>
+        /// <returns>a row in csv file, null if eof</returns>
         private string[] ReadLine()
         {
-            return _parser.ReadFields();
+            return _enumerator.MoveNext() ? _enumerator.Current : null;
         }
 
         /// <summary>
@@ -44,7 +45,7 @@ namespace cq
 
         public void Dispose()
         {
-            _parser.Close();
+            _reader.Dispose();
         }
     }
 }

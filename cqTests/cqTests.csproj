@@ -63,6 +63,7 @@
   </Choose>
   <ItemGroup>
     <Compile Include="ChainingAssertion.NUnit.cs" />
+    <Compile Include="CsvReaderTests.cs" />
     <Compile Include="CsvWriterTests.cs" />
     <Compile Include="FilterTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
