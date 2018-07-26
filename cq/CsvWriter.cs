@@ -23,7 +23,7 @@ namespace cq
 
         public void WriteLine(IEnumerable<string> data)
         {
-            _writer.WriteLine(string.Join(",", data.Select(EscapeString)));
+            _writer.Write(string.Join(",", data.Select(EscapeString)) + "\r\n");
         }
 
         /// <summary>
