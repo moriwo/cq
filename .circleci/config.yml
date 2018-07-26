@@ -24,4 +24,4 @@ dependencies:
 test:
     override:
         - xbuild
-        - nunit-console <test project name>/bin/Debug/<test project name>.dll
+        - nunit-console cqTest/bin/Debusg/cqTests.dll
