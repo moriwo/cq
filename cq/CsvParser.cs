@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 
 namespace cq
 {
@@ -132,7 +133,7 @@ namespace cq
         public static IEnumerable<string[]> Parse(Func<int> supplier)
         {
             var row = new List<string>();
-            var cell = string.Empty;
+            var cell = new StringBuilder();
             var currentState = State.NewRecord;
             var rowCount = 1;
             var columnCount = 1;
@@ -143,14 +144,17 @@ namespace cq
                 var behaviour = Automaton[currentState][c];
 
                 if (behaviour.NextState == State.FormatError)
-                    throw new CsvFormatException(rowCount, columnCount, cell);
+                    throw new CsvFormatException(rowCount, columnCount, cell.ToString());
 
                 if (behaviour.Record)
-                    cell += (char) c;
+                {
+                    cell.Append((char)c);
+                }
+
                 if (behaviour.PublishCell)
                 {
-                    row.Add(cell);
-                    cell = string.Empty;
+                    row.Add(cell.ToString());
+                    cell.Clear();
                     columnCount++;
                 }
 

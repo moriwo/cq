@@ -2,6 +2,7 @@
 using cq;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -12,6 +13,42 @@ namespace cq.Tests
     [TestFixture()]
     public class CsvReaderTests
     {
+        // this is not a unittest. it is only for checking performance.
+        [Test]
+        public void CanReadFast()
+        {
+            var testData = new[]
+            {
+                new[] {"1", "abc", "1,2,3", "1\n\"a\" "},
+                new[] {"@:;[.", ",,,,,,", "a\na\n\n\n\n", "\"\"\"", "", "", "", ",", "EOL"},
+                new[] {""},
+                new[] {"this", "is", "a", "csv", "file"},
+                new[] {"a,a,a,a,a,a,a,a,a,a,a,a,a,a,a,a,a,a,a,a,a,\",a,a,a,a,a,a,a,a,a,a,a,a,a,a,a,a,a,a,a,a,a,\","},
+            };
+
+            var temporaryFilePath = Path.GetTempFileName();
+
+            using (var cw = new CsvWriter(new StreamWriter(temporaryFilePath)))
+            {
+                for (int i = 0; i < 100000; i++)
+                {
+                    foreach (var row in testData)
+                    {
+                        cw.WriteLine(row);
+                    }
+                }
+            }
+
+            var stopwatch = new Stopwatch();
+            stopwatch.Start();
+
+            var result = new CsvReader(new StreamReader(temporaryFilePath)).ReadAllLines().ToArray();
+
+            stopwatch.Stop();
+
+            Console.WriteLine($"{stopwatch.Elapsed.TotalMilliseconds} msec elapsed.");
+        }
+
         [Test]
         public void CanReadSimpleOneLineCsv()
         {
@@ -199,9 +236,9 @@ namespace cq.Tests
                     throw new AssertionException(readAllLines.Last().Last());
                 },
                 Throws.TypeOf<CsvFormatException>()
-                .With.Property("Row").EqualTo(1)
-                .With.Property("Column").EqualTo(3)
-                .With.Property("Near").EqualTo("a,w,3\n")
+                    .With.Property("Row").EqualTo(1)
+                    .With.Property("Column").EqualTo(3)
+                    .With.Property("Near").EqualTo("a,w,3\n")
             );
         }
 

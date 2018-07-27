@@ -23,7 +23,7 @@ namespace cqTests
         }
 
         [Test]
-        public void CanWriteToTextWriter()
+        public void CanWriteToTextWriterAndReadByCsvReader()
         {
             var testData = new[]
             {
