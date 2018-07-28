@@ -124,8 +124,11 @@ using System.Dynamic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using NUnit.Framework;
+// ReSharper disable All
+#pragma warning disable 162
 
-namespace NUnit.Framework
+namespace cqTests
 {
     #region Extensions
 

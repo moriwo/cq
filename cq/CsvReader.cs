@@ -1,12 +1,6 @@
 ﻿using System;
 using System.IO;
-using System.Text;
-using Microsoft.VisualBasic.FileIO;
 using System.Collections.Generic;
-using System.Linq;
-using System.Resources;
-using CommandLine;
-using Jint.Parser.Ast;
 
 namespace cq
 {

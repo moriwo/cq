@@ -1,19 +1,14 @@
 ﻿using cq;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace cq.Tests
+namespace cqTests
 {
     public class FilterTests
     {
         /// <summary>
         /// common test data for Filter.Apply
         /// </summary>
-        private readonly string[] _commonInput = new[] { "cell0", "cell1", "cell2", "cell3", "43", "cell5" };
+        private readonly string[] _commonInput = { "cell0", "cell1", "cell2", "cell3", "43", "cell5" };
 
         [Test]
         public void FilterCanConvertEveryStringInArray()

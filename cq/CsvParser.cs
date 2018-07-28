@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
 namespace cq
@@ -19,18 +19,22 @@ namespace cq
             QuoteEnd
         }
 
+        private const int Eof = -1;
+        private const int QuoteMark = '"';
+        private const int Delimiter = ',';
+        private const int Cr = '\r';
+        private const int Lf = '\n';
+
         private class Behaviour
         {
-            public readonly int[] Triggers;
             public readonly State NextState;
             public readonly bool Record;
             public readonly bool PublishCell;
             public readonly bool PublishRow;
 
-            public Behaviour(int[] trigger, State nextState, bool record = false, bool publishCell = false,
+            public Behaviour(State nextState, bool record = false, bool publishCell = false,
                 bool publishRow = false)
             {
-                Triggers = trigger;
                 NextState = nextState;
                 Record = record;
                 PublishCell = publishCell;
@@ -41,94 +45,129 @@ namespace cq
         private class BehaviourCollection
         {
             private readonly Behaviour _defaultBehaviour;
-            private readonly Dictionary<int, Behaviour> _behaviours;
+            private readonly Behaviour _eofBehaviour;
+            private readonly Behaviour _quoteMarkBehaviour;
+            private readonly Behaviour _delimiterBehaviour;
+            private readonly Behaviour _crBehaviour;
+            private readonly Behaviour _lfBehaviour;
 
-            public BehaviourCollection(IEnumerable<Behaviour> behaviours)
+            public BehaviourCollection(
+                Behaviour defaultBehaviour,
+                Behaviour eofBehaviour = null,
+                Behaviour quoteBehaviour = null,
+                Behaviour delimiterBehaviour = null,
+                Behaviour crBehaviour = null,
+                Behaviour lfBehaviour = null
+            )
             {
-                _behaviours = new Dictionary<int, Behaviour>();
-
-                foreach (var behaviour in behaviours)
-                {
-                    if (behaviour.Triggers == null)
-                        _defaultBehaviour = behaviour;
-                    else
-                    {
-                        foreach (var behaviourTrigger in behaviour.Triggers)
-                        {
-                            _behaviours.Add(behaviourTrigger, behaviour);
-                        }
-                    }
-                }
+                _defaultBehaviour = defaultBehaviour;
+                _eofBehaviour = eofBehaviour ?? defaultBehaviour;
+                _quoteMarkBehaviour = quoteBehaviour ?? defaultBehaviour;
+                _delimiterBehaviour = delimiterBehaviour ?? defaultBehaviour;
+                _crBehaviour = crBehaviour ?? defaultBehaviour;
+                _lfBehaviour = lfBehaviour ?? defaultBehaviour;
             }
 
-            public Behaviour this[int index] => _behaviours.ContainsKey(index) ? _behaviours[index] : _defaultBehaviour;
+            public Behaviour Get(int input)
+            {
+                switch (input)
+                {
+                    case Eof: return _eofBehaviour;
+                    case QuoteMark: return _quoteMarkBehaviour;
+                    case Delimiter: return _delimiterBehaviour;
+                    case Cr: return _crBehaviour;
+                    case Lf: return _lfBehaviour;
+                    default: return _defaultBehaviour;
+                }
+            }
         }
 
-        private const int Eof = -1;
-        private const int QuoteMark = '"';
-        private const int Delimiter = ',';
-        private const int Cr = '\r';
-        private const int Lf = '\n';
+        private class NewAutomata
+        {
+            private readonly BehaviourCollection _newRecordBehaviours;
+            private readonly BehaviourCollection _carriageReturnBehaviours;
+            private readonly BehaviourCollection _delimitedBehaviours;
+            private readonly BehaviourCollection _nakedCellBehaviours;
+            private readonly BehaviourCollection _quotedCellBehaviours;
+            private readonly BehaviourCollection _quoteEndBehaviours;
 
-        private static readonly Dictionary<State, BehaviourCollection> Automaton =
-            new Dictionary<State, BehaviourCollection>()
+            public NewAutomata(
+                BehaviourCollection newRecordBehaviours,
+                BehaviourCollection carriageReturnBehaviours,
+                BehaviourCollection delimitedBehaviours,
+                BehaviourCollection nakedCellBehaviours,
+                BehaviourCollection quotedCellBehaviours,
+                BehaviourCollection quoteEndBehaviours
+            )
             {
+                _newRecordBehaviours = newRecordBehaviours;
+                _carriageReturnBehaviours = carriageReturnBehaviours;
+                _delimitedBehaviours = delimitedBehaviours;
+                _nakedCellBehaviours = nakedCellBehaviours;
+                _quotedCellBehaviours = quotedCellBehaviours;
+                _quoteEndBehaviours = quoteEndBehaviours;
+            }
+
+            public Behaviour GetBehaviours(State currentState, int input)
+            {
+                return Get(currentState).Get(input);
+            }
+
+            private BehaviourCollection Get(State currentState)
+            {
+                switch (currentState)
                 {
-                    State.NewRecord, new BehaviourCollection(new[]
-                    {
-                        new Behaviour(new int[] {QuoteMark}, State.QuotedCell),
-                        new Behaviour(new int[] {Delimiter}, State.Delimited, publishCell: true),
-                        new Behaviour(new int[] {Cr}, State.CarriageReturn, publishCell: true, publishRow: true),
-                        new Behaviour(new int[] {Eof}, State.Eof, publishCell: false, publishRow: false),
-                        new Behaviour(null, State.NakedCell, record: true),
-                    })
-                },
-                {
-                    State.Delimited, new BehaviourCollection(new[]
-                    {
-                        new Behaviour(new int[] {QuoteMark}, State.QuotedCell),
-                        new Behaviour(new int[] {Delimiter}, State.Delimited, publishCell: true),
-                        new Behaviour(new int[] {Cr}, State.CarriageReturn, publishCell: true, publishRow: false),
-                        new Behaviour(new int[] {Eof}, State.Eof, publishCell: true, publishRow: true),
-                        new Behaviour(null, State.NakedCell, record: true),
-                    })
-                },
-                {
-                    State.CarriageReturn, new BehaviourCollection(new[]
-                    {
-                        new Behaviour(new int[] {Lf}, State.NewRecord),
-                        new Behaviour(null, State.FormatError),
-                    })
-                },
-                {
-                    State.NakedCell, new BehaviourCollection(new[]
-                    {
-                        new Behaviour(new int[] {Delimiter}, State.Delimited, publishCell: true),
-                        new Behaviour(new int[] {Cr}, State.CarriageReturn, publishCell: true, publishRow: true),
-                        new Behaviour(new int[] {QuoteMark, Lf}, State.FormatError),
-                        new Behaviour(new int[] {Eof}, State.Eof, publishCell: true, publishRow: true),
-                        new Behaviour(null, State.NakedCell, record: true),
-                    })
-                },
-                {
-                    State.QuotedCell, new BehaviourCollection(new[]
-                    {
-                        new Behaviour(new int[] {QuoteMark}, State.QuoteEnd),
-                        new Behaviour(new int[] {Eof}, State.FormatError),
-                        new Behaviour(null, State.QuotedCell, record: true),
-                    })
-                },
-                {
-                    State.QuoteEnd, new BehaviourCollection(new[]
-                    {
-                        new Behaviour(new int[] {QuoteMark}, State.QuotedCell, record: true),
-                        new Behaviour(new int[] {Delimiter}, State.Delimited, publishCell: true),
-                        new Behaviour(new int[] {Cr}, State.CarriageReturn, publishCell: true, publishRow: true),
-                        new Behaviour(new int[] {Eof}, State.Eof, publishCell: true, publishRow: true),
-                        new Behaviour(null, State.FormatError),
-                    })
-                },
-            };
+                    case State.NewRecord: return _newRecordBehaviours;
+                    case State.CarriageReturn: return _carriageReturnBehaviours;
+                    case State.Delimited: return _delimitedBehaviours;
+                    case State.NakedCell: return _nakedCellBehaviours;
+                    case State.QuotedCell: return _quotedCellBehaviours;
+                    case State.QuoteEnd: return _quoteEndBehaviours;
+                    default: throw new Exception(); // never comes here
+                }
+            }
+        }
+
+        [SuppressMessage("ReSharper", "ArgumentsStyleLiteral")] 
+        private static readonly NewAutomata Automaton = new NewAutomata(
+            newRecordBehaviours: new BehaviourCollection(
+                quoteBehaviour: new Behaviour(State.QuotedCell),
+                delimiterBehaviour: new Behaviour(State.Delimited, publishCell: true),
+                crBehaviour: new Behaviour(State.CarriageReturn, publishCell: true, publishRow: true),
+                eofBehaviour: new Behaviour(State.Eof),
+                defaultBehaviour: new Behaviour(State.NakedCell, record: true)
+            ),
+            delimitedBehaviours: new BehaviourCollection(
+                quoteBehaviour: new Behaviour(State.QuotedCell),
+                delimiterBehaviour: new Behaviour(State.Delimited, publishCell: true),
+                crBehaviour: new Behaviour(State.CarriageReturn, publishCell: true),
+                eofBehaviour: new Behaviour(State.Eof, publishCell: true, publishRow: true),
+                defaultBehaviour: new Behaviour(State.NakedCell, record: true)
+            ),
+            carriageReturnBehaviours: new BehaviourCollection(
+                lfBehaviour: new Behaviour(State.NewRecord),
+                defaultBehaviour: new Behaviour(State.FormatError)
+            ),
+            nakedCellBehaviours: new BehaviourCollection(
+                delimiterBehaviour: new Behaviour(State.Delimited, publishCell: true),
+                crBehaviour: new Behaviour(State.CarriageReturn, publishCell: true, publishRow: true),
+                quoteBehaviour: new Behaviour(State.FormatError),
+                lfBehaviour: new Behaviour(State.FormatError),
+                eofBehaviour: new Behaviour(State.Eof, publishCell: true, publishRow: true),
+                defaultBehaviour: new Behaviour(State.NakedCell, record: true)
+            ),
+            quotedCellBehaviours: new BehaviourCollection(
+                quoteBehaviour: new Behaviour(State.QuoteEnd),
+                eofBehaviour: new Behaviour(State.FormatError),
+                defaultBehaviour: new Behaviour(State.QuotedCell, record: true)
+            ),
+            quoteEndBehaviours: new BehaviourCollection(
+                quoteBehaviour: new Behaviour(State.QuotedCell, record: true),
+                delimiterBehaviour: new Behaviour(State.Delimited, publishCell: true),
+                crBehaviour: new Behaviour(State.CarriageReturn, publishCell: true, publishRow: true),
+                eofBehaviour: new Behaviour(State.Eof, publishCell: true, publishRow: true),
+                defaultBehaviour: new Behaviour(State.FormatError)
+            ));
 
         public static IEnumerable<string[]> Parse(Func<int> supplier)
         {
@@ -136,26 +175,26 @@ namespace cq
             var cell = new StringBuilder();
             var currentState = State.NewRecord;
             var rowCount = 1;
-            var columnCount = 1;
-            
+
             do
             {
                 var c = supplier();
-                var behaviour = Automaton[currentState][c];
+                var behaviour = Automaton.GetBehaviours(currentState, c);
 
                 if (behaviour.NextState == State.FormatError)
-                    throw new CsvFormatException(rowCount, columnCount, cell.ToString());
+                {
+                    throw new CsvFormatException(rowCount, row.Count + 1, cell.ToString());
+                }
 
                 if (behaviour.Record)
                 {
-                    cell.Append((char)c);
+                    cell.Append((char) c);
                 }
 
                 if (behaviour.PublishCell)
                 {
                     row.Add(cell.ToString());
                     cell.Clear();
-                    columnCount++;
                 }
 
                 if (behaviour.PublishRow)
@@ -163,7 +202,6 @@ namespace cq
                     yield return row.ToArray();
                     row.Clear();
                     rowCount++;
-                    columnCount = 1;
                 }
 
                 currentState = behaviour.NextState;

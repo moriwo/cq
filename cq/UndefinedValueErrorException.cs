@@ -2,9 +2,9 @@
 
 namespace cq
 {
-    public class UndefinedValueErrorException : System.Exception
+    public class UndefinedValueErrorException : Exception
     {
-        public string Index { get; private set; }
+        public string Index { get; }
         
         public UndefinedValueErrorException(string index)
         {

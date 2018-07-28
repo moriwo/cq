@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 
 namespace cq
 {
@@ -36,18 +35,19 @@ namespace cq
         /// <returns>escaped string</returns>
         public static string EscapeString(string str)
         {
-            var mustBeQuoted = false;
-
             if (str == null)
                 return "";
 
-            mustBeQuoted = str.StartsWith(" ") || str.EndsWith(" ") || str.Contains(",") || str.Contains("\n");
+            var containsDoubleQuote = str.Contains("\"");
+            var startsWithWhiteSpace = str.StartsWith(" ");
+            var endsWithWhiteSpace = str.EndsWith(" ");
+            var containsComma = str.Contains(",");
+            var containsLineFeed = str.Contains("\n");
+            
+            var mustBeQuoted = startsWithWhiteSpace || endsWithWhiteSpace || containsComma || containsLineFeed || containsDoubleQuote;
 
-            if (str.Contains("\""))
-            {
-                mustBeQuoted = true;
+            if (containsDoubleQuote)
                 str = str.Replace("\"", "\"\"");
-            }
 
             return mustBeQuoted ? $"\"{str}\"" : str;
         }

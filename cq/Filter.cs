@@ -1,12 +1,5 @@
-﻿using Jint;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Linq.Expressions;
-using System.Text;
-using System.Threading.Tasks;
-using Jint.Native;
-using Jint.Native.Array;
+﻿using System.Linq;
+using Jint;
 
 namespace cq
 {
@@ -17,8 +10,8 @@ namespace cq
 
         public Filter(string script)
         {
-            this._script = $"[{script}]";
-            this._engine = new Engine();
+            _script = $"[{script}]";
+            _engine = new Engine();
         }
 
         /// <summary>
